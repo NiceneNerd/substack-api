@@ -334,21 +334,24 @@ export class NoteBuilder {
 
   /**
    * Convert the builder's content to Substack's note format
+   * @param state - Optional state to use instead of this.state (for subclasses)
    */
-  private toNoteRequest(): PublishNoteRequest {
+  protected toNoteRequest(state?: NoteBuilderState): PublishNoteRequest {
+    const actualState = state || this.state
+
     // Validation: must have at least one paragraph
-    if (this.state.paragraphs.length === 0) {
+    if (actualState.paragraphs.length === 0) {
       throw new Error('Note must contain at least one paragraph')
     }
 
     // Validation: each paragraph must have content
-    for (const paragraph of this.state.paragraphs) {
+    for (const paragraph of actualState.paragraphs) {
       if (paragraph.segments.length === 0 && paragraph.lists.length === 0) {
         throw new Error('Each paragraph must contain at least one content block')
       }
     }
 
-    const content = this.state.paragraphs.flatMap((paragraph) => {
+    const content = actualState.paragraphs.flatMap((paragraph) => {
       const elements = []
 
       // Add paragraph content if it has segments
@@ -391,8 +394,8 @@ export class NoteBuilder {
       replyMinimumRole: 'everyone'
     }
 
-    if (this.state.attachmentIds && this.state.attachmentIds.length > 0) {
-      request.attachmentIds = this.state.attachmentIds
+    if (actualState.attachmentIds && actualState.attachmentIds.length > 0) {
+      request.attachmentIds = actualState.attachmentIds
     }
 
     return request
@@ -449,28 +452,20 @@ export class NoteBuilder {
 export class NoteWithLinkBuilder extends NoteBuilder {
   constructor(
     client: HttpClient,
-    private readonly linkUrl: string
+    private readonly linkUrl: string,
+    state?: NoteBuilderState
   ) {
-    super(client)
+    super(client, state)
   }
 
   /**
    * Add a paragraph to the note (used by ParagraphBuilder) - returns NoteWithLinkBuilder to preserve attachment logic
    */
   addParagraph(paragraph: { segments: TextSegment[]; lists: List[] }): NoteWithLinkBuilder {
-    return new NoteWithLinkBuilder(this.client, this.linkUrl).copyState({
+    return new NoteWithLinkBuilder(this.client, this.linkUrl, {
       paragraphs: [...this.state.paragraphs, paragraph],
       attachmentIds: this.state.attachmentIds
     })
-  }
-
-  /**
-   * Copy state to new instance - helper method
-   */
-  private copyState(state: NoteBuilderState): NoteWithLinkBuilder {
-    const newBuilder = new NoteWithLinkBuilder(this.client, this.linkUrl)
-    ;(newBuilder as any).state = state
-    return newBuilder
   }
 
   /**
@@ -494,77 +489,11 @@ export class NoteWithLinkBuilder extends NoteBuilder {
       attachmentIds: [attachmentResponse.id]
     }
 
-    // Create the request with attachment
-    const request = this.toNoteRequestWithState(updatedState)
+    // Create the request with attachment using the base class method
+    const request = this.toNoteRequest(updatedState)
 
     // Publish the note with attachment
     return this.client.post<PublishNoteResponse>('/api/v1/comment/feed', request)
-  }
-
-  /**
-   * Convert the builder's content to Substack's note format with custom state
-   */
-  private toNoteRequestWithState(state: NoteBuilderState): PublishNoteRequest {
-    // Validation: must have at least one paragraph
-    if (state.paragraphs.length === 0) {
-      throw new Error('Note must contain at least one paragraph')
-    }
-
-    // Validation: each paragraph must have content
-    for (const paragraph of state.paragraphs) {
-      if (paragraph.segments.length === 0 && paragraph.lists.length === 0) {
-        throw new Error('Each paragraph must contain at least one content block')
-      }
-    }
-
-    const content = state.paragraphs.flatMap((paragraph) => {
-      const elements = []
-
-      // Add paragraph content if it has segments
-      if (paragraph.segments.length > 0) {
-        elements.push({
-          type: 'paragraph' as const,
-          content: paragraph.segments.map((segment) => this.segmentToContent(segment))
-        })
-      }
-
-      // Add list content
-      for (const list of paragraph.lists) {
-        elements.push({
-          type: list.type === 'bullet' ? ('bulletList' as const) : ('orderedList' as const),
-          content: list.items.map((item) => ({
-            type: 'listItem' as const,
-            content: [
-              {
-                type: 'paragraph' as const,
-                content: item.segments.map((segment) => this.segmentToContent(segment))
-              }
-            ]
-          }))
-        })
-      }
-
-      return elements
-    })
-
-    const request: PublishNoteRequest = {
-      bodyJson: {
-        type: 'doc',
-        attrs: {
-          schemaVersion: 'v1'
-        },
-        content
-      },
-      tabId: 'for-you',
-      surface: 'feed',
-      replyMinimumRole: 'everyone'
-    }
-
-    if (state.attachmentIds && state.attachmentIds.length > 0) {
-      request.attachmentIds = state.attachmentIds
-    }
-
-    return request
   }
 }
 
@@ -574,28 +503,20 @@ export class NoteWithLinkBuilder extends NoteBuilder {
 export class NoteWithImageBuilder extends NoteBuilder {
   constructor(
     client: HttpClient,
-    private readonly imageData: string
+    private readonly imageData: string,
+    state?: NoteBuilderState
   ) {
-    super(client)
+    super(client, state)
   }
 
   /**
    * Add a paragraph to the note (used by ParagraphBuilder) - returns NoteWithImageBuilder to preserve attachment logic
    */
   addParagraph(paragraph: { segments: TextSegment[]; lists: List[] }): NoteWithImageBuilder {
-    return new NoteWithImageBuilder(this.client, this.imageData).copyState({
+    return new NoteWithImageBuilder(this.client, this.imageData, {
       paragraphs: [...this.state.paragraphs, paragraph],
       attachmentIds: this.state.attachmentIds
     })
-  }
-
-  /**
-   * Copy state to new instance - helper method
-   */
-  private copyState(state: NoteBuilderState): NoteWithImageBuilder {
-    const newBuilder = new NoteWithImageBuilder(this.client, this.imageData)
-    ;(newBuilder as any).state = state
-    return newBuilder
   }
 
   /**
@@ -629,76 +550,10 @@ export class NoteWithImageBuilder extends NoteBuilder {
       attachmentIds: [attachmentResponse.id]
     }
 
-    // Create the request with attachment
-    const request = this.toNoteRequestWithState(updatedState)
+    // Create the request with attachment using the base class method
+    const request = this.toNoteRequest(updatedState)
 
     // Publish the note with attachment
     return this.client.post<PublishNoteResponse>('/api/v1/comment/feed', request)
-  }
-
-  /**
-   * Convert the builder's content to Substack's note format with custom state
-   */
-  private toNoteRequestWithState(state: NoteBuilderState): PublishNoteRequest {
-    // Validation: must have at least one paragraph
-    if (state.paragraphs.length === 0) {
-      throw new Error('Note must contain at least one paragraph')
-    }
-
-    // Validation: each paragraph must have content
-    for (const paragraph of state.paragraphs) {
-      if (paragraph.segments.length === 0 && paragraph.lists.length === 0) {
-        throw new Error('Each paragraph must contain at least one content block')
-      }
-    }
-
-    const content = state.paragraphs.flatMap((paragraph) => {
-      const elements = []
-
-      // Add paragraph content if it has segments
-      if (paragraph.segments.length > 0) {
-        elements.push({
-          type: 'paragraph' as const,
-          content: paragraph.segments.map((segment) => this.segmentToContent(segment))
-        })
-      }
-
-      // Add list content
-      for (const list of paragraph.lists) {
-        elements.push({
-          type: list.type === 'bullet' ? ('bulletList' as const) : ('orderedList' as const),
-          content: list.items.map((item) => ({
-            type: 'listItem' as const,
-            content: [
-              {
-                type: 'paragraph' as const,
-                content: item.segments.map((segment) => this.segmentToContent(segment))
-              }
-            ]
-          }))
-        })
-      }
-
-      return elements
-    })
-
-    const request: PublishNoteRequest = {
-      bodyJson: {
-        type: 'doc',
-        attrs: {
-          schemaVersion: 'v1'
-        },
-        content
-      },
-      tabId: 'for-you',
-      surface: 'feed',
-      replyMinimumRole: 'everyone'
-    }
-
-    if (state.attachmentIds && state.attachmentIds.length > 0) {
-      request.attachmentIds = state.attachmentIds
-    }
-
-    return request
   }
 }
