@@ -2,7 +2,9 @@ import {
   PublishNoteRequest,
   PublishNoteResponse,
   CreateAttachmentRequest,
-  CreateAttachmentResponse
+  CreateAttachmentResponse,
+  UploadImageRequest,
+  UploadImageResponse
 } from '../internal'
 import { HttpClient } from '../internal/http-client'
 
@@ -479,6 +481,141 @@ export class NoteWithLinkBuilder extends NoteBuilder {
     const attachmentRequest: CreateAttachmentRequest = {
       url: this.linkUrl,
       type: 'link'
+    }
+
+    const attachmentResponse = await this.client.post<CreateAttachmentResponse>(
+      '/api/v1/comment/attachment',
+      attachmentRequest
+    )
+
+    // Update the state with the attachment ID
+    const updatedState: NoteBuilderState = {
+      paragraphs: this.state.paragraphs,
+      attachmentIds: [attachmentResponse.id]
+    }
+
+    // Create the request with attachment
+    const request = this.toNoteRequestWithState(updatedState)
+
+    // Publish the note with attachment
+    return this.client.post<PublishNoteResponse>('/api/v1/comment/feed', request)
+  }
+
+  /**
+   * Convert the builder's content to Substack's note format with custom state
+   */
+  private toNoteRequestWithState(state: NoteBuilderState): PublishNoteRequest {
+    // Validation: must have at least one paragraph
+    if (state.paragraphs.length === 0) {
+      throw new Error('Note must contain at least one paragraph')
+    }
+
+    // Validation: each paragraph must have content
+    for (const paragraph of state.paragraphs) {
+      if (paragraph.segments.length === 0 && paragraph.lists.length === 0) {
+        throw new Error('Each paragraph must contain at least one content block')
+      }
+    }
+
+    const content = state.paragraphs.flatMap((paragraph) => {
+      const elements = []
+
+      // Add paragraph content if it has segments
+      if (paragraph.segments.length > 0) {
+        elements.push({
+          type: 'paragraph' as const,
+          content: paragraph.segments.map((segment) => this.segmentToContent(segment))
+        })
+      }
+
+      // Add list content
+      for (const list of paragraph.lists) {
+        elements.push({
+          type: list.type === 'bullet' ? ('bulletList' as const) : ('orderedList' as const),
+          content: list.items.map((item) => ({
+            type: 'listItem' as const,
+            content: [
+              {
+                type: 'paragraph' as const,
+                content: item.segments.map((segment) => this.segmentToContent(segment))
+              }
+            ]
+          }))
+        })
+      }
+
+      return elements
+    })
+
+    const request: PublishNoteRequest = {
+      bodyJson: {
+        type: 'doc',
+        attrs: {
+          schemaVersion: 'v1'
+        },
+        content
+      },
+      tabId: 'for-you',
+      surface: 'feed',
+      replyMinimumRole: 'everyone'
+    }
+
+    if (state.attachmentIds && state.attachmentIds.length > 0) {
+      request.attachmentIds = state.attachmentIds
+    }
+
+    return request
+  }
+}
+
+/**
+ * Extended NoteBuilder that uploads an image, creates an attachment for it, and publishes the note with the attachment
+ */
+export class NoteWithImageBuilder extends NoteBuilder {
+  constructor(
+    client: HttpClient,
+    private readonly imageData: string
+  ) {
+    super(client)
+  }
+
+  /**
+   * Add a paragraph to the note (used by ParagraphBuilder) - returns NoteWithImageBuilder to preserve attachment logic
+   */
+  addParagraph(paragraph: { segments: TextSegment[]; lists: List[] }): NoteWithImageBuilder {
+    return new NoteWithImageBuilder(this.client, this.imageData).copyState({
+      paragraphs: [...this.state.paragraphs, paragraph],
+      attachmentIds: this.state.attachmentIds
+    })
+  }
+
+  /**
+   * Copy state to new instance - helper method
+   */
+  private copyState(state: NoteBuilderState): NoteWithImageBuilder {
+    const newBuilder = new NoteWithImageBuilder(this.client, this.imageData)
+    ;(newBuilder as any).state = state
+    return newBuilder
+  }
+
+  /**
+   * Publish the note with the image attachment
+   */
+  async publish(): Promise<PublishNoteResponse> {
+    // First, upload the image
+    const uploadRequest: UploadImageRequest = {
+      image: this.imageData
+    }
+
+    const uploadResponse = await this.client.post<UploadImageResponse>(
+      '/api/v1/image',
+      uploadRequest
+    )
+
+    // Second, create the attachment for the uploaded image
+    const attachmentRequest: CreateAttachmentRequest = {
+      url: uploadResponse.url,
+      type: 'image'
     }
 
     const attachmentResponse = await this.client.post<CreateAttachmentResponse>(
