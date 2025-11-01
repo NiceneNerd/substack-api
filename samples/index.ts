@@ -313,6 +313,31 @@ async function runExample(): Promise<void> {
       console.log(`   ❌ Failed to create note with link: ${(error as Error).message}`)
     }
 
+    // Example: Create a note with image attachment
+    console.log('\n🖼️  Creating a note with image attachment...')
+    try {
+      // A small 1x1 red pixel PNG image as base64
+      const testImage = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg=='
+      
+      const noteWithImageResponse = await profile
+        .newNoteWithImage(testImage)
+        .paragraph()
+        .text('Check out this ')
+        .bold('amazing image')
+        .text(' I\'m sharing with you! 🖼️')
+        .paragraph()
+        .text('The image is automatically uploaded and attached to this note.')
+        .publish()
+
+      console.log(`✅ Note with image attachment published successfully!`)
+      console.log(`   Note ID: ${noteWithImageResponse.id}`)
+      console.log(`   Published at: ${noteWithImageResponse.date}`)
+      console.log(`   Attachments: ${noteWithImageResponse.attachments?.length || 0}`)
+      
+    } catch (error) {
+      console.log(`   ❌ Failed to create note with image: ${(error as Error).message}`)
+    }
+
     // Example: Create a complex formatted note
     console.log('\n✨ Creating a complex formatted note...')
     try {

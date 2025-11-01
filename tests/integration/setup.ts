@@ -75,13 +75,7 @@ const createMockServer = (): Promise<{
             }
 
             // Return the sample image upload response
-            const sampleResponsePath = join(
-              process.cwd(),
-              'samples',
-              'api',
-              'v1',
-              'image-response'
-            )
+            const sampleResponsePath = join(process.cwd(), 'samples', 'api', 'v1', 'image-response')
             const sampleData = readFileSync(sampleResponsePath, 'utf8')
             res.writeHead(200)
             res.end(sampleData)

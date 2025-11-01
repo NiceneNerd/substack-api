@@ -1,6 +1,4 @@
 import { SubstackClient } from '../../src/substack-client'
-import { readFileSync } from 'fs'
-import { join } from 'path'
 
 describe('note with image attachment integration tests', () => {
   let client: SubstackClient
@@ -22,7 +20,8 @@ describe('note with image attachment integration tests', () => {
 
   test('should upload image, create attachment, and publish note with correct request structure', async () => {
     const profile = await client.ownProfile()
-    const testImageData = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+    const testImageData =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
 
     await profile
       .newNoteWithImage(testImageData)
@@ -153,7 +152,7 @@ describe('note with image attachment integration tests', () => {
       await profile
         .newNoteWithImage(imageData)
         .paragraph()
-        .text(`Testing with image format`)
+        .text('Testing with image format')
         .publish()
 
       expect(global.INTEGRATION_SERVER.capturedRequests).toHaveLength(3)
@@ -167,7 +166,8 @@ describe('note with image attachment integration tests', () => {
 
   test('should work with lists and complex formatting', async () => {
     const profile = await client.ownProfile()
-    const testImageData = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+    const testImageData =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
 
     await profile
       .newNoteWithImage(testImageData)
