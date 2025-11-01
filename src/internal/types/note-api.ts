@@ -52,7 +52,15 @@ export interface PublishNoteRequest {
 
 export interface CreateAttachmentRequest {
   url: string
-  type: 'link'
+  type: 'link' | 'image'
+}
+
+export interface UploadImageRequest {
+  image: string // Base64 encoded image data with data URI prefix
+}
+
+export interface UploadImageResponse {
+  url: string // The S3 URL where the image is stored
 }
 
 export interface CreateAttachmentResponse {

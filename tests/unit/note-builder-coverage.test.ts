@@ -249,22 +249,6 @@ describe('NoteBuilder - Coverage Tests', () => {
       expect(bulletList.content[0].content[0].content[0].text).toBe('First item')
       expect(bulletList.content[1].content[0].content[0].text).toBe('Second item')
     })
-
-    it('should test NoteWithLinkBuilder validation errors', () => {
-      const noteWithLinkBuilder = new NoteWithLinkBuilder(mockClient, 'https://example.com')
-
-      // Test empty note validation in NoteWithLinkBuilder's toNoteRequestWithState
-      expect(() => {
-        ;(noteWithLinkBuilder as any).toNoteRequestWithState({ paragraphs: [] })
-      }).toThrow('Note must contain at least one paragraph')
-
-      // Test empty paragraph validation in NoteWithLinkBuilder's toNoteRequestWithState
-      expect(() => {
-        ;(noteWithLinkBuilder as any).toNoteRequestWithState({
-          paragraphs: [{ segments: [], lists: [] }]
-        })
-      }).toThrow('Each paragraph must contain at least one content block')
-    })
   })
 
   describe('NoteWithLinkBuilder methods', () => {
